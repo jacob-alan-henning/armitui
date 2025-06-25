@@ -49,12 +49,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "s":
 			if !m.progEnded {
+				m.instructionHistory = append(m.instructionHistory, m.cpu.GetCurrentInst())
+
 				err := m.cpu.Step()
 				if err != nil {
 					m.progEnded = true
 					return m, nil
 				}
-				m.instructionHistory = append(m.instructionHistory, m.cpu.GetCurrentInst())
 			}
 		}
 	}
@@ -63,8 +64,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) buildInstructionHistory() string {
 	var stateBuilder strings.Builder
+	curr := len(m.instructionHistory) - 1
 	for i := range m.instructionHistory {
-		fmt.Fprintf(&stateBuilder, "cmd: %s\n", m.instructionHistory[i])
+		if curr != i {
+			fmt.Fprintf(&stateBuilder, "   %s\n", m.instructionHistory[i])
+		} else {
+			fmt.Fprintf(&stateBuilder, "*  %s\n", m.instructionHistory[i])
+		}
 	}
 	return stateBuilder.String()
 }

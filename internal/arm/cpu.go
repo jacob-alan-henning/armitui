@@ -156,20 +156,24 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 			return fmt.Errorf("ADD invalid source or destination register %s", inst.String())
 		}
 
+		// source + immediate
 		imm, ok := inst.Args[2].(arm64asm.Imm64)
 		if ok {
 			cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] + imm.Imm
-		} else {
-			addReg, arock := inst.Args[2].(arm64asm.RegExtshiftAmount)
-			if arock {
-				hackReg, err := regExtnToReg(addReg)
-				if err != nil {
-					return err
-				}
-				cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] + cpu.gpRegister[hackReg]
-			} else {
-				return fmt.Errorf("ADD invalid third ARG %s: %t", inst.String(), inst.Args[2])
+			return nil
+		}
+
+		// dual register
+		addReg, arock := inst.Args[2].(arm64asm.RegExtshiftAmount)
+		if arock {
+			hackReg, err := regExtnToReg(addReg)
+			if err != nil {
+				return err
 			}
+			cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] + cpu.gpRegister[hackReg]
+			return nil
+		} else {
+			return fmt.Errorf("ADD invalid third ARG %s: %t", inst.String(), inst.Args[2])
 		}
 	case arm64asm.MOV:
 		reg, rok := inst.Args[0].(arm64asm.Reg)
@@ -178,16 +182,21 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 		if !rok {
 			return fmt.Errorf("MOV invalid destination register %s", inst.String())
 		}
+
+		// register + register
 		if ok {
 			cpu.gpRegister[reg] = imm.Imm
-		} else {
-			secondReg, srock := inst.Args[1].(arm64asm.Reg)
-			if srock {
-				cpu.gpRegister[reg] = cpu.gpRegister[secondReg]
-			} else {
-				return fmt.Errorf("MOV invalid third ARG %s", inst.String())
-			}
+			return nil
 		}
+
+		secondReg, srock := inst.Args[1].(arm64asm.Reg)
+		if srock {
+			cpu.gpRegister[reg] = cpu.gpRegister[secondReg]
+			return nil
+		} else {
+			return fmt.Errorf("MOV invalid third ARG %s", inst.String())
+		}
+
 	case arm64asm.SUB:
 		destReg, drock := inst.Args[0].(arm64asm.Reg)
 		sourceReg, srok := inst.Args[1].(arm64asm.Reg)
@@ -198,17 +207,19 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 		imm, ok := inst.Args[2].(arm64asm.Imm64)
 		if ok {
 			cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] - imm.Imm
-		} else {
-			addReg, arock := inst.Args[2].(arm64asm.RegExtshiftAmount)
-			if arock {
-				hackReg, err := regExtnToReg(addReg)
-				if err != nil {
-					return err
-				}
-				cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] - cpu.gpRegister[hackReg]
-			} else {
-				return fmt.Errorf("SUB invalid third ARG %s: %t", inst.String(), inst.Args[2])
+			return nil
+		}
+
+		addReg, arock := inst.Args[2].(arm64asm.RegExtshiftAmount)
+		if arock {
+			hackReg, err := regExtnToReg(addReg)
+			if err != nil {
+				return err
 			}
+			cpu.gpRegister[destReg] = cpu.gpRegister[sourceReg] - cpu.gpRegister[hackReg]
+			return nil
+		} else {
+			return fmt.Errorf("SUB invalid third ARG %s: %t", inst.String(), inst.Args[2])
 		}
 	case arm64asm.SVC:
 		if cpu.gpRegister[arm64asm.X16] == 1 {
@@ -233,6 +244,7 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 			for i := 0; i < 8; i++ {
 				cpu.writeMemory(addr+uint64(i), byte(val>>(i*8)))
 			}
+			return nil
 		}
 
 		// base + immediate offset
@@ -246,11 +258,12 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 			for i := 0; i < 8; i++ {
 				cpu.writeMemory(fAddr+uint64(i), byte(val>>(i*8)))
 			}
+			return nil
 		}
 
 		// base + register offset
 		offReg, offRock := inst.Args[2].(arm64asm.RegExtshiftAmount)
-		if srcRock && offRock {
+		if offRock {
 			addr := cpu.gpRegister[srcReg]
 			hackReg, err := regExtnToReg(offReg)
 			if err != nil {
@@ -263,6 +276,9 @@ func (cpu *ARM64CPU) execute(inst arm64asm.Inst) error {
 			for i := 0; i < 8; i++ {
 				cpu.writeMemory(fAddr+uint64(i), byte(val>>(i*8)))
 			}
+			return nil
+		} else {
+			return fmt.Errorf("invalid str %s", inst.String())
 		}
 	default:
 		return fmt.Errorf("unknown instruction %s", inst.String())
