@@ -1,4 +1,4 @@
-package ui
+package stepper
 
 import (
 	"github.com/charmbracelet/lipgloss"

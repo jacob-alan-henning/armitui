@@ -1,7 +1,7 @@
 package main
 
-import "github.com/jacob-alan-henning/armitui/internal/ui"
+import "github.com/jacob-alan-henning/armitui/internal/stepper"
 
 func main() {
-	ui.StartUI()
+	stepper.StartUI()
 }
